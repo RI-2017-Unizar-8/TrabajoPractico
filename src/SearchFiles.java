@@ -13,14 +13,20 @@ import java.util.List;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.es.SpanishAnalyzer;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Version;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BooleanClause;
 
 /**
  * 
@@ -108,52 +114,181 @@ public class SearchFiles {
 	    	/* preparamos los contenedores de información finales */
 	        finalScore = new ArrayList<Double>();
 	        finalIDs = new ArrayList<Integer>();
-	    	
-	 
-	        
+
+	   
 	        /* QUERY 1 - Sobre el titulo */
 	        QueryParser parser = new QueryParser("title", analyzer);
-	    	Query query = parser.parse(i.getNeed());
+	    	String texto = parser.parse(i.getNeed()).toString();
+	        Query query = parser.parse(texto);
+	    	  	
+	    	BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
 	    	
-	    	System.out.println("Searching for: " + query.toString("title") + ".\n");
-	    	Date start = new Date();
-	        searcher.search(query, 100);
-	        Date end = new Date();
+	    	/* Consulta normal */
+	    	booleanQuery.add(query, BooleanClause.Occur.MUST);   	
+	    	
+	    	/* Restriccion de la fecha, si la hay */
+	    	if(i.getHayFecha()){
+	    		
+		    	double anyoIni = 1900.0, anyoFin = 2020.0;
+		    	
+	    		if(i.getAnyoIni() != 0){
+	    			anyoIni = (double) i.getAnyoIni();
+	    		} 
+	    		if(i.getAnyoFin() != 0){
+	    			anyoFin = (double) i.getAnyoFin();
+	    		} 
+
+	    		Query dateQuery = DoublePoint.newRangeQuery("date",anyoIni,anyoFin);
+	    		
+	    		if(i.getFechaPreferible() == true)
+	    			booleanQuery.add(dateQuery, BooleanClause.Occur.SHOULD);  
+	    		else
+	    			booleanQuery.add(dateQuery, BooleanClause.Occur.MUST);  
+	    		
+	    	}
+	    	
+	    	/* Restriccion de los autores, si los hay */
+	    	if(i.getHayAutores()){
+	    		
+	    		QueryParser autorParser = new QueryParser("creator", analyzer);
+		        String autorTexto = "";
+		        for(String s : i.getAutores()){
+		        	autorTexto += s + " ";
+		        }
+	    		Query autorQuery = autorParser.parse(autorTexto);	
+	    		System.out.println(autorQuery.toString());
+		    	booleanQuery.add(autorQuery, BooleanClause.Occur.MUST);   	
+	    		
+	    	}
+	    	
+	    	BooleanQuery finalQuery = booleanQuery.build();
+	    	
+	    	System.out.println("[INF-NEED " + i.getId() + "]: " + "Searching for: " + finalQuery.toString() + ".\n");
+	    	
+	    	//Date start = new Date();
+	        searcher.search(finalQuery, 100);
+	        //Date end = new Date();
 	        
-	        System.out.println("Time: "+(end.getTime()-start.getTime())+" ms\n.");
+	        //System.out.println("\tTime: "+(end.getTime()-start.getTime())+" ms\n.");
 	        
 	        /* Guardamos los resultados sobre titulo */
-	        ScoreDoc[] titleHits = doPagingSearch(necesidades.get(0), searcher, query); 
+	        ScoreDoc[] titleHits = doPagingSearch(i, searcher, finalQuery); 
 	        
 	        
 	        
 	        /* QUERY 2 - Sobre el subject */
 	        parser = new QueryParser("subject", analyzer);
-	    	query = parser.parse(i.getNeed());
+	    	texto = parser.parse(i.getNeed()).toString();
+	        query = parser.parse(texto);
+	    	  	
+	    	booleanQuery = new BooleanQuery.Builder();
 	    	
-	    	start = new Date();
-	        searcher.search(query, 100);
-	        end = new Date();
+	    	/* Consulta normal */
+	    	booleanQuery.add(query, BooleanClause.Occur.MUST);   	
+	    	
+	    	/* Restriccion de la fecha, si la hay */
+	    	if(i.getHayFecha()){
+	    		
+		    	int anyoIni = 1900, anyoFin = 2020;
+		    	
+	    		if(i.getAnyoIni() != 0){
+	    			anyoIni = i.getAnyoIni();
+	    		} 
+	    		if(i.getAnyoFin() != 0){
+	    			anyoFin = i.getAnyoFin();
+	    		} 
+
+	    		Query dateQuery = DoublePoint.newRangeQuery("date",anyoIni,anyoFin);
+
+	    		if(i.getFechaPreferible() == true)
+	    			booleanQuery.add(dateQuery, BooleanClause.Occur.SHOULD);  
+	    		else
+	    			booleanQuery.add(dateQuery, BooleanClause.Occur.MUST);   
+	    		
+	    	}
+	    	
+	    	/* Restriccion de los autores, si los hay */
+	    	if(i.getHayAutores()){
+	    		
+	    		QueryParser autorParser = new QueryParser("creator", analyzer);
+		        String autorTexto = "";
+		        for(String s : i.getAutores()){
+		        	autorTexto += s + " ";
+		        }
+	    		Query autorQuery = autorParser.parse(autorTexto);	
+	    		System.out.println(autorQuery.toString());
+		    	booleanQuery.add(autorQuery, BooleanClause.Occur.MUST);   	
+	    		
+	    	}
+	    	
+	    	finalQuery = booleanQuery.build();
+	    	
+	    	//start = new Date();
+	        searcher.search(finalQuery, 100);
+	        //end = new Date();
 	        
-	        System.out.println("Time: "+(end.getTime()-start.getTime())+" ms");
+	        //System.out.println("Time: "+(end.getTime()-start.getTime())+" ms");
 	        
 	        /* Guardamos los resultados sobre subject */
-	        ScoreDoc[] subjectHits = doPagingSearch(necesidades.get(0), searcher, query);
+	        ScoreDoc[] subjectHits = doPagingSearch(i, searcher, finalQuery);
 	        
 	        
 	        
 	        /* QUERY 3 - Sobre el description */
 	        parser = new QueryParser("description", analyzer);
-	    	query = parser.parse(i.getNeed());
+	    	texto = parser.parse(i.getNeed()).toString();
+	        query = parser.parse(texto);
+	    	  	
+	    	booleanQuery = new BooleanQuery.Builder();
 	    	
-	    	start = new Date();
-	        searcher.search(query, 100);
-	        end = new Date();
+	    	/* Consulta normal */
+	    	booleanQuery.add(query, BooleanClause.Occur.MUST);   	
+	    	
+	    	/* Restriccion de la fecha, si la hay */
+	    	if(i.getHayFecha()){
+	    		
+		    	int anyoIni = 1900, anyoFin = 2020;
+		    	
+	    		if(i.getAnyoIni() != 0){
+	    			anyoIni = i.getAnyoIni();
+	    		} 
+	    		if(i.getAnyoFin() != 0){
+	    			anyoFin = i.getAnyoFin();
+	    		} 
+
+	    		Query dateQuery = DoublePoint.newRangeQuery("date",anyoIni,anyoFin);
+
+	    		if(i.getFechaPreferible() == true)
+	    			booleanQuery.add(dateQuery, BooleanClause.Occur.SHOULD);  
+	    		else
+	    			booleanQuery.add(dateQuery, BooleanClause.Occur.MUST);  
+	    		
+	    	}
+	    	
+	    	/* Restriccion de los autores, si los hay */
+	    	if(i.getHayAutores()){
+	    		
+	    		QueryParser autorParser = new QueryParser("creator", analyzer);
+		        String autorTexto = "";
+		        for(String s : i.getAutores()){
+		        	autorTexto += s + " ";
+		        }
+	    		Query autorQuery = autorParser.parse(autorTexto);	
+	    		System.out.println(autorQuery.toString());
+		    	booleanQuery.add(autorQuery, BooleanClause.Occur.MUST);   	
+	    		
+	    	}
+	    	
+	    	finalQuery = booleanQuery.build();
+	    	
+	    	//start = new Date();
+	        searcher.search(finalQuery, 100);
+	        //end = new Date();
 	        
-	        System.out.println("Time: "+(end.getTime()-start.getTime())+" ms");
+	        //System.out.println("Time: "+(end.getTime()-start.getTime())+" ms");
 	        
 	        /* Guardamos los resultados sobre descripcion */
-	        ScoreDoc[] descriptionHits = doPagingSearch(necesidades.get(0), searcher, query);
+	        ScoreDoc[] descriptionHits = doPagingSearch(i, searcher, finalQuery);
 	        
 	        /* Tras obtener el score en cada parte, aplicamos un ratio */
 	        /* Suponemos 3 tipos de prioridades:

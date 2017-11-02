@@ -2,6 +2,7 @@
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.es.SpanishAnalyzer;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
@@ -155,6 +156,9 @@ public class IndexFiles {
 			          TextField title = null;
 			          TextField subject = null;
 			          TextField description = null;
+			          DoublePoint date = null;
+			          TextField autors = null;
+			       
 			          
 			          /* Campo de titulo */
 			          if(nodo.getElementsByTagName("dc:title") != null && nodo.getElementsByTagName("dc:title").getLength()>0){
@@ -180,6 +184,21 @@ public class IndexFiles {
 			        	  }
 			          }
 			          
+			          /* Campo de fecha */
+			          if(nodo.getElementsByTagName("dc:date") != null && nodo.getElementsByTagName("dc:date").getLength()>0){
+			        	  for(int i = 0; i<nodo.getElementsByTagName("dc:date").getLength(); ++i){
+			        		  date = new DoublePoint("date", Double.valueOf(nodo.getElementsByTagName("dc:date").item(i).getTextContent()));
+				        	  doc.add(date);
+			        	  }
+			          }
+			          
+			          /* Campo de autor */
+			          if(nodo.getElementsByTagName("dc:creator") != null && nodo.getElementsByTagName("dc:creator").getLength()>0){
+			        	  for(int i = 0; i<nodo.getElementsByTagName("dc:creator").getLength(); ++i){
+			        		  autors = new TextField("creator", nodo.getElementsByTagName("dc:creator").item(i).getTextContent(), Field.Store.YES);
+				        	  doc.add(autors);
+			        	  }
+			          }
 			          
 		          } catch (Exception e){
 		        	  System.err.println("Error en la indexación: " + e.getMessage());
